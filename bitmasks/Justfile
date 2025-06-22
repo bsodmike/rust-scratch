@@ -1,0 +1,4 @@
+prep:
+  cargo b
+  cargo fmt
+  cargo t
