@@ -15,4 +15,4 @@
  *   limitations under the License.
  */
 
-pub mod ex_1_bitmask_basics;
+pub mod ex_1_basics;
