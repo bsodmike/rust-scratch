@@ -1,0 +1,10 @@
+[package]
+name = "fixed_precision_calculations"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+fastnum = { version = "0.2.10", features = ["serde"] }
+
+[dev-dependencies]
+rstest = { version = "0.25.0", features = [] }
