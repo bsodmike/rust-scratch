@@ -15,4 +15,12 @@
  *   limitations under the License.
  */
 
+#![warn(unused_imports)]
+
+pub mod domain {
+    pub mod value_type {
+        pub mod amount;
+    }
+}
+
 pub mod ex_1;
