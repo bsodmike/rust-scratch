@@ -5,6 +5,8 @@ edition = "2024"
 
 [dependencies]
 fastnum = { version = "0.2.10", features = ["serde"] }
+fake = { version = "4.3.0", features = ["derive"] }
+rand = "0.9.1"
 
 [dev-dependencies]
 rstest = { version = "0.25.0", features = [] }

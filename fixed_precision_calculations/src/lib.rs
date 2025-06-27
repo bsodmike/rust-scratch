@@ -23,4 +23,10 @@ pub mod domain {
     }
 }
 
-pub mod ex_1;
+pub mod utility {
+    pub mod generate_data {
+        pub mod generate_monetary_values;
+    }
+}
+pub mod ex_1_part_1;
+pub mod ex_1_part_2;
