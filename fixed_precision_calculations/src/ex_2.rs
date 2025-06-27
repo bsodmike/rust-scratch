@@ -36,9 +36,7 @@ fn get_total_f64(data: &[&'static str]) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use super::amount::{Amount, Cents};
     use crate::ex_2::{DATA, get_total_d128, get_total_f64};
-    use rstest::rstest;
 
     #[should_panic(expected = "assertion `left == right` failed")]
     #[test]

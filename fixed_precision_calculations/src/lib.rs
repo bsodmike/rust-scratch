@@ -16,6 +16,7 @@
  */
 
 #![warn(unused_imports)]
+#![allow(dead_code)]
 
 // NOTE: disabled
 // pub mod domain {
@@ -31,5 +32,4 @@ pub mod utility {
 }
 pub mod ex_1_part_1;
 pub mod ex_1_part_2;
-
 pub mod ex_2;
