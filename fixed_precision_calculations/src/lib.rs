@@ -17,11 +17,12 @@
 
 #![warn(unused_imports)]
 
-pub mod domain {
-    pub mod value_type {
-        pub mod amount;
-    }
-}
+// NOTE: disabled
+// pub mod domain {
+//     pub mod value_type {
+//         pub mod amount;
+//     }
+// }
 
 pub mod utility {
     pub mod generate_data {
@@ -30,3 +31,5 @@ pub mod utility {
 }
 pub mod ex_1_part_1;
 pub mod ex_1_part_2;
+
+pub mod ex_2;
