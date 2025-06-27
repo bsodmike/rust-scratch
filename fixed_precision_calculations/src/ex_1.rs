@@ -42,7 +42,7 @@ mod tests {
 
         assert_eq!(r.to_string(), "560.99");
 
-        // thread 'ex_1_part_1::tests::simulate_rounding_failure' panicked at src/ex_1_part_1.rs:44:9:
+        // thread 'ex_1_part_1::tests::simulate_rounding_failure' panicked at src/ex_1:44:9:
         //     assertion `left == right` failed
         // left: "560.98900000000001455191522836685180664"
         // right: "560.99"
@@ -67,7 +67,7 @@ mod tests {
 
         assert_eq!(euros.to_string(), "560.99");
         //
-        // thread 'ex_1_part_1::tests::simulate_rounding_failure_converted' panicked at src/ex_1_part_1.rs:68:9:
+        // thread 'ex_1_part_1::tests::simulate_rounding_failure_converted' panicked at src/ex_1:68:9:
         //     assertion `left == right` failed
         // left: "560.98900000000001455191522836685180664"
         // right: "560.99"

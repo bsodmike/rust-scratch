@@ -1,60 +1,100 @@
+use anyhow::Context;
 use fastnum::D128;
-use std::sync::LazyLock;
+use std::fmt::Formatter;
 
-static DATA: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
-    vec![
-        "548.15", "83.15", "805.28", "142.66", "107.19", "852.18", "50.29", "781.65", "887.29",
-        "988.73",
-    ]
-});
+/// Semantic type to indicate the underlying value is in Euros and not [`Cents`].
+type Euros = Amount<0>;
 
-pub mod amount;
+/// A monetary amount in cents (2 decimal places).
+#[allow(dead_code)]
+type Cents = Amount<2>;
 
-fn get_total_d128(data: &[&'static str]) -> D128 {
-    let mut accumulator = D128::from_f64(0.0);
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Amount<const DECIMALS: usize>(D128);
 
-    data.iter().for_each(|s| {
-        let value: f64 = s.parse().unwrap();
+impl<const DECIMALS: usize> Amount<DECIMALS> {
+    /// Treats the input as a scaled integer (e.g. 1234 → 12.34)
+    pub const fn new_scaled_i32(inner: i32) -> Self {
+        Self(D128::from_i32(inner).div(D128::from_i32(10_i32).pow(D128::from_usize(DECIMALS))))
+    }
 
-        accumulator = accumulator.add(D128::from_f64(value));
-    });
-
-    accumulator
+    pub const fn new_f64(inner: f64) -> Self {
+        Self(D128::from_f64(inner))
+    }
 }
 
-fn get_total_f64(data: &[&'static str]) -> f64 {
-    let mut accumulator = 0.0;
+impl<const DECIMALS: usize> std::fmt::Display for Amount<DECIMALS> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
-    data.iter().for_each(|s| {
-        let value: f64 = s.parse().unwrap();
+impl<const DECIMALS: usize> From<D128> for Amount<DECIMALS> {
+    fn from(value: D128) -> Self {
+        Self(value)
+    }
+}
 
-        accumulator += value;
-    });
+#[derive(Debug, thiserror::Error)]
+pub enum AmountConverterError {
+    #[error("unknown error: {0}")]
+    Unknown(#[from] anyhow::Error),
+}
+pub struct AmountConverter<const DECIMALS: usize> {
+    amount: Amount<DECIMALS>,
+}
 
-    accumulator
+impl<const DECIMALS: usize> AmountConverter<DECIMALS> {
+    pub fn new(amount: Amount<DECIMALS>) -> Self {
+        Self { amount }
+    }
+
+    pub fn amount(&self) -> Amount<DECIMALS> {
+        self.amount
+    }
+
+    pub fn amount_to_i32(&self) -> Result<i32, AmountConverterError> {
+        self.amount
+            .0
+            .to_i32()
+            .map_err(|err| anyhow::anyhow!("error converting amount to i32: {:?}", err).into())
+    }
+
+    pub fn amount_to_f64(&self) -> f64 {
+        self.amount.0.to_f64()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::ex_2::{DATA, get_total_d128, get_total_f64};
+    use super::*;
 
-    #[should_panic(expected = "assertion `left == right` failed")]
+    use rstest::rstest;
+
     #[test]
-    fn demo_f64_precision_loss() {
-        let data = DATA.clone();
+    fn test_amount_converter_init() {
+        // Using decimals = 2
+        let value = Amount::new_scaled_i32(1234);
+        let converter = AmountConverter::<2>::new(value);
 
-        let r_d128 = get_total_d128(&data);
-        let r_f64 = get_total_f64(&data);
+        assert_eq!(converter.amount_to_i32().unwrap(), 12);
+        assert_eq!(converter.amount_to_f64(), 12.34);
 
-        assert_eq!(r_d128.round(20).to_string(), format!("{:.20}", r_f64));
+        // Using decimals = 0
+        let value = Amount::new_scaled_i32(1234);
+        let converter = AmountConverter::<0>::new(value);
 
-        // NOTE: is this a sufficient test to show f64 precision loss? What's a better way to illustrate this, i.e. a larger dataset?
-        //
-        // test ex_2::tests::demo_f64_precision_loss ...
-        //     thread 'ex_2::tests::demo_f64_precision_loss' panicked at src/ex_2.rs:50:9:
-        //     assertion `left == right` failed
-        // left: "5246.56999999999985817567"
-        // right: "5246.56999999999970896170"
-        // FAILED
+        assert_eq!(converter.amount_to_i32().unwrap(), 1234);
+        assert_eq!(converter.amount_to_f64(), 1234.00);
+    }
+
+    #[test]
+    fn check_fractional_digits() {
+        let average: f64 = 56098.9;
+        let r = D128::from(average) / D128::from(100);
+        assert_eq!(r.fractional_digits_count(), 35);
+
+        let rounded = r.round(2);
+        assert_eq!(rounded.fractional_digits_count(), 2);
     }
 }

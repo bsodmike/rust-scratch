@@ -30,6 +30,7 @@ pub mod utility {
         pub mod generate_monetary_values;
     }
 }
-pub mod ex_1_part_1;
-pub mod ex_1_part_2;
+pub mod ex_1;
 pub mod ex_2;
+pub mod ex_3;
+pub mod ex_4;

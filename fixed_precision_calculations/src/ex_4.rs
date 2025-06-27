@@ -1,3 +1,5 @@
+use anyhow::Context;
+use core::num::IntErrorKind;
 use fastnum::D128;
 use std::fmt::Formatter;
 
@@ -15,6 +17,13 @@ impl CurrencyFormatter {
         r.into()
     }
 }
+
+/// Semantic type to indicate the underlying value is in Euros and not [`Cents`].
+type Euros = Amount<0>;
+
+/// A monetary amount in cents (2 decimal places).
+#[allow(dead_code)]
+type Cents = Amount<2>;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Amount<const DECIMALS: usize>(D128);
@@ -42,37 +51,11 @@ impl<const DECIMALS: usize> From<D128> for Amount<DECIMALS> {
     }
 }
 
-/// Semantic type to indicate the underlying value is in Euros and not [`Cents`].
-type Euros = Amount<0>;
-
-/// A monetary amount in cents (2 decimal places).
-#[allow(dead_code)]
-type Cents = Amount<2>;
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     use rstest::rstest;
-
-    #[test]
-    fn handle_cents() {
-        let value: Cents = Amount::<2>::new_f64(100.0);
-        assert_eq!(value.to_string(), "100");
-
-        let value: Cents = Amount::<2>::new_scaled_i32(1234);
-        assert_eq!(value.to_string(), "12.34");
-    }
-
-    #[test]
-    fn check_fractional_digits() {
-        let average: f64 = 56098.9;
-        let r = D128::from(average) / D128::from(100);
-        assert_eq!(r.fractional_digits_count(), 35);
-
-        let rounded = r.round(2);
-        assert_eq!(rounded.fractional_digits_count(), 2);
-    }
 
     #[rstest]
     #[case(|cents_raw| {
