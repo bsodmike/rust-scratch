@@ -10,7 +10,7 @@ type Euros = Amount<0>;
 type Cents = Amount<2>;
 
 /// A monetary amount in cents/100 (4 decimal places), or "1/10,000" - hence the name.
-pub type Pertenthousand = Amount<4>;
+type Pertenthousand = Amount<4>;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Amount<const DECIMALS: usize>(D128);
@@ -84,32 +84,38 @@ mod tests {
     }
 
     #[test]
-    fn check_fractional_digits() {
-        let average: f64 = 56098.9;
-        let r = D128::from(average) / D128::from(100);
-        assert_eq!(r.fractional_digits_count(), 35);
-
-        let rounded = r.round(2);
-        assert_eq!(rounded.fractional_digits_count(), 2);
-    }
-
-    #[test]
     fn convert_to_string() {
         // This is a whole currency unit
         let value = Amount::<0>::new_scaled_i32(1234);
         let formatted = format!("{}", value);
-
         assert_eq!(formatted, "1234");
 
+        // monetary cents
         let value = Amount::<2>::new_scaled_i32(1234);
         let formatted = format!("{}", value);
-
         assert_eq!(formatted, "12.34");
 
         // We've increased our precision here, this is reflected in the formatted output
         let value = Amount::<4>::new_scaled_i32(123456);
         let formatted = format!("{}", value);
+        assert_eq!(formatted, "12.3456");
+    }
 
+    #[test]
+    fn convert_to_string_via_semantic_types() {
+        // This is a whole currency unit
+        let value: Euros = Amount::new_scaled_i32(1234);
+        let formatted = format!("{}", value);
+        assert_eq!(formatted, "1234");
+
+        // monetary cents
+        let value: Cents = Amount::new_scaled_i32(1234);
+        let formatted = format!("{}", value);
+        assert_eq!(formatted, "12.34");
+
+        // We've increased our precision here, this is reflected in the formatted output
+        let value: Pertenthousand = Amount::new_scaled_i32(123456);
+        let formatted = format!("{}", value);
         assert_eq!(formatted, "12.3456");
     }
 }

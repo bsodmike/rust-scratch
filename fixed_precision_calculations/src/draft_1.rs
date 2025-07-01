@@ -82,4 +82,14 @@ mod tests {
 
         assert_eq!(euros.to_string(), "560.99");
     }
+
+    #[test]
+    fn check_fractional_digits() {
+        let average: f64 = 56098.9;
+        let r = D128::from(average) / D128::from(100);
+        assert_eq!(r.fractional_digits_count(), 35);
+
+        let rounded = r.round(2);
+        assert_eq!(rounded.fractional_digits_count(), 2);
+    }
 }
