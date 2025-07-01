@@ -9,6 +9,9 @@ type Euros = Amount<0>;
 #[allow(dead_code)]
 type Cents = Amount<2>;
 
+/// A monetary amount in cents/100 (4 decimal places), or "1/10,000" - hence the name.
+pub type Pertenthousand = Amount<4>;
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Amount<const DECIMALS: usize>(D128);
 
@@ -26,12 +29,6 @@ impl<const DECIMALS: usize> Amount<DECIMALS> {
 impl<const DECIMALS: usize> std::fmt::Display for Amount<DECIMALS> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
-    }
-}
-
-impl<const DECIMALS: usize> From<D128> for Amount<DECIMALS> {
-    fn from(value: D128) -> Self {
-        Self(value)
     }
 }
 
@@ -94,5 +91,25 @@ mod tests {
 
         let rounded = r.round(2);
         assert_eq!(rounded.fractional_digits_count(), 2);
+    }
+
+    #[test]
+    fn convert_to_string() {
+        // This is a whole currency unit
+        let value = Amount::<0>::new_scaled_i32(1234);
+        let formatted = format!("{}", value);
+
+        assert_eq!(formatted, "1234");
+
+        let value = Amount::<2>::new_scaled_i32(1234);
+        let formatted = format!("{}", value);
+
+        assert_eq!(formatted, "12.34");
+
+        // We've increased our precision here, this is reflected in the formatted output
+        let value = Amount::<4>::new_scaled_i32(123456);
+        let formatted = format!("{}", value);
+
+        assert_eq!(formatted, "12.3456");
     }
 }
