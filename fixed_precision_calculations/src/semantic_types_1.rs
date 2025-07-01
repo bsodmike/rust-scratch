@@ -69,10 +69,8 @@ impl<const DECIMALS: usize> AmountConverter<DECIMALS> {
 mod tests {
     use super::*;
 
-    use rstest::rstest;
-
     #[test]
-    fn test_amount_converter_init() {
+    fn amount_converter_init() {
         // Using decimals = 2
         let value = Amount::new_scaled_i32(1234);
         let converter = AmountConverter::<2>::new(value);

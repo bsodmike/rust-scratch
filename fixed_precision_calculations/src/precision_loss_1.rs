@@ -36,7 +36,7 @@ fn get_total_f64(data: &[&'static str]) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use crate::ex_3::{DATA, get_total_d128, get_total_f64};
+    use crate::precision_loss_1::{DATA, get_total_d128, get_total_f64};
 
     #[should_panic(expected = "assertion `left == right` failed")]
     #[test]
@@ -50,8 +50,8 @@ mod tests {
 
         // NOTE: is this a sufficient test to show f64 precision loss? What's a better way to illustrate this, i.e. a larger dataset?
         //
-        // test ex_3::tests::demo_f64_precision_loss ...
-        //     thread 'ex_3::tests::demo_f64_precision_loss' panicked at src/ex_3:50:9:
+        // test precision_loss_1::tests::demo_f64_precision_loss ...
+        //     thread 'precision_loss_1::tests::demo_f64_precision_loss' panicked at src/precision_loss_1:50:9:
         //     assertion `left == right` failed
         // left: "5246.56999999999985817567"
         // right: "5246.56999999999970896170"

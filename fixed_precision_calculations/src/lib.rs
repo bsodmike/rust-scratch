@@ -30,7 +30,12 @@ pub mod utility {
         pub mod generate_monetary_values;
     }
 }
-pub mod ex_1;
-pub mod ex_2;
-pub mod ex_3;
-pub mod ex_4;
+
+// Examples for related blog article(s).
+
+pub mod precision_loss_1;
+pub mod semantic_types_1;
+
+// These are organic ideas, just something for me to percolate over.
+pub mod draft_1;
+pub mod draft_2;
