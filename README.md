@@ -10,3 +10,7 @@ If you have questions, comments, feedback:
 
 - Via issues: https://github.com/bsodmike/rust-scratch/issues
 - You can also [email me](mailto:michael@crustyengineer.com) directly.
+
+## License
+
+Licensed under [Apache License Version 2.0](./LICENSE-APACHE).

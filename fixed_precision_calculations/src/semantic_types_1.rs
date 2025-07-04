@@ -1,4 +1,3 @@
-use anyhow::Context;
 use fastnum::D128;
 use std::fmt::Formatter;
 
@@ -117,5 +116,21 @@ mod tests {
         let value: Pertenthousand = Amount::new_scaled_i32(123456);
         let formatted = format!("{}", value);
         assert_eq!(formatted, "12.3456");
+    }
+}
+
+#[cfg(test)]
+mod mid_computations_example {
+    use super::*;
+
+    // Work unit
+    const UNITE_OEUVRE: Cents = Cents::new_scaled_i32(137289);
+    const SOCIAL_TAXES_RATE: Cents = Cents::new_scaled_i32(30400);
+    const NET_WAGE_RATE: Cents = Cents::new_scaled_i32(92570);
+
+    #[test]
+    fn do_it() {
+
+        //
     }
 }
