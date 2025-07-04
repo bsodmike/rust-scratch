@@ -15,4 +15,14 @@
  *   limitations under the License.
  */
 
-pub mod language_foundations;
+pub mod domain {
+    pub mod value_types {
+        pub mod uid;
+    }
+}
+
+pub mod language_foundations {
+    pub mod type_conversions {
+        pub mod uid;
+    }
+}
