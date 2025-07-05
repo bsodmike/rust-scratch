@@ -1,3 +1,7 @@
+/// # Notes
+///
+/// - https://stackoverflow.com/a/35394549/449342 / concrete examples included.
+
 #[cfg(test)]
 mod illustrate_covariance {
     use std::marker::PhantomData;
