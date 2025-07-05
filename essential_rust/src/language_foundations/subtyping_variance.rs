@@ -1,6 +1,9 @@
 /// # Notes
 ///
-/// - https://stackoverflow.com/a/35394549/449342 / concrete examples included.
+/// - https://stackoverflow.com/a/35394549/449342
+///     - concrete examples included.
+/// - https://stackoverflow.com/a/32172407/449342
+///     - considers complexities around a pointer pointer such as &'x mut &'a mut i32 (and all the resulting shenanigans).
 
 #[cfg(test)]
 mod illustrate_covariance {
