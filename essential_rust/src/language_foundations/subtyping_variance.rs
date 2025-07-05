@@ -112,3 +112,60 @@ mod illustrate_covariance {
         // This is not okay because it doesn't have some of the properties that it's type indicates it has.
     }
 }
+
+#[cfg(test)]
+mod illustrate_phantom_fn_ptrs {
+    use std::marker::PhantomData;
+    use std::rc::Rc; // Rc<T> is NOT Send
+
+    // A non-Send type
+    struct NotSend(Rc<u8>);
+
+    // Should not be Send if T is not Send
+    fn assert_send<T: Send>() {}
+
+    struct Wrapper<T> {
+        _marker: PhantomData<T>,
+    }
+
+    #[test]
+    fn send_not_allowed() {
+        // error[E0277]: `Rc<u8>` cannot be sent between threads safely
+        //     --> src/language_foundations/subtyping_variance.rs:136:23
+        //     |
+        //     136 |         assert_send::<Wrapper<NotSend>>();
+        // |                       ^^^^^^^^^^^^^^^^ `Rc<u8>` cannot be sent between threads safely
+        //     |
+        //     = help: within `Wrapper<NotSend>`, the trait `Send` is not implemented for `Rc<u8>`
+    }
+
+    // PhantomData<fn() -> T> is invariant over T and also prevents auto traits like Send and Sync from being derived if T is not Send or Sync.
+
+    struct WrapperFn<T> {
+        _marker: PhantomData<fn() -> T>,
+    }
+
+    #[test]
+    fn block_send() {
+        // This is correctly blocked as `NotSend` is not `Send`
+        assert_send::<WrapperFn<NotSend>>();
+    }
+
+    struct WrapperPtr<T> {
+        _marker: PhantomData<*const T>,
+    }
+
+    #[test]
+    fn should_compile() {
+        // assert_send::<WrapperPtr<NotSend>>();
+
+        // error[E0277]: `*const NotSend` cannot be sent between threads safely
+        //     --> src/language_foundations/subtyping_variance.rs:147:23
+        //     |
+        //     147 |         assert_send::<WrapperPtr<NotSend>>();
+        // |                       ^^^^^^^^^^^^^^^^^^^ `*const NotSend` cannot be sent between threads safely
+        //     |
+        //     = help: within `WrapperPtr<NotSend>`, the trait `Send` is not implemented for `*const NotSend`
+        // note: required because it appears within the type `PhantomData<*const NotSend>`
+    }
+}
