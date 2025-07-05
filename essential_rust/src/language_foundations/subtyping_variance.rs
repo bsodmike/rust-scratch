@@ -139,7 +139,7 @@ mod illustrate_phantom_fn_ptrs {
         //     = help: within `Wrapper<NotSend>`, the trait `Send` is not implemented for `Rc<u8>`
     }
 
-    // PhantomData<fn() -> T> is invariant over T and also prevents auto traits like Send and Sync from being derived if T is not Send or Sync.
+    // PhantomData<fn() -> T> is covariant over T and also prevents auto traits like Send and Sync from being derived if T is not Send or Sync.
 
     struct WrapperFn<T> {
         _marker: PhantomData<fn() -> T>,
