@@ -3,6 +3,7 @@
 #[cfg(test)]
 mod uid_conversion {
     use crate::domain::value_types::uid::Uid;
+    use std::marker::PhantomData;
 
     /// Value type for Task Unique IDs
     type TaskUid = Uid<Task>;
