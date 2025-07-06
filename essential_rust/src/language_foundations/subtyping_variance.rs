@@ -120,59 +120,272 @@ mod illustrate_covariance {
     }
 }
 
+/// Ref: https://doc.rust-lang.org/nomicon/phantom-data.html
 #[cfg(test)]
-mod illustrate_phantom_fn_ptrs {
+mod illustrate_phantom_data_auto_traits {
     use std::marker::PhantomData;
-    use std::rc::Rc; // Rc<T> is NOT Send
+    use std::rc::Rc;
+    use std::sync::Arc;
 
-    // A non-Send type
+    // A non-Send type as Rc<T> is NOT Send
     struct NotSend(Rc<u8>);
+
+    struct CanSend(Arc<u8>);
 
     // Should not be Send if T is not Send
     fn assert_send<T: Send>() {}
 
-    struct Wrapper<T> {
-        _marker: PhantomData<T>,
+    /// PhantomData<T> is covariant over T
+    mod phantom_data_t {
+        use super::*;
+
+        struct Wrapper<T> {
+            _marker: PhantomData<T>,
+        }
+
+        #[test]
+        fn non_send_type_cannot_compile() {
+            // error[E0277]: `Rc<u8>` cannot be sent between threads safely
+            //     --> src/language_foundations/subtyping_variance.rs:136:23
+            //     |
+            //     136 |         assert_send::<Wrapper<NotSend>>();
+            // |                       ^^^^^^^^^^^^^^^^ `Rc<u8>` cannot be sent between threads safely
+            //     |
+            //     = help: within `Wrapper<NotSend>`, the trait `Send` is not implemented for `Rc<u8>`
+        }
+
+        #[test]
+        fn send_type_ok() {
+            assert_send::<Wrapper<CanSend>>();
+        }
+    }
+
+    /// PhantomData<fn() -> T> is covariant over T
+    ///
+    /// # Auto-traits:
+    ///
+    /// In the context of `Wrapper<T>`:
+    /// - Implies that T must be Send and Sync for the containing type to be Send and Sync, unless T is a ZST (Zero-Sized Type).
+    /// - PhantomData<fn() -> T> is covariant on fn() -> T which in turn is covariant on T. so all fields of WrapperFn<T> (there’s just one to be precise but in generalised terms) only need covariance on T, so the type (`Wrapper<T>`) is covariant on T
+    ///
+    /// The reason for requiring PhantomData is that it enables "by example" variance. Thus for the majority
+    /// of cases, code doesn't need to directly consider variance, and can instead say
+    /// - "I own T" (PhantomData<T>),
+    /// - "I borrow T" (PhantomData<&[mut] T>),
+    /// - "I produce T (PhantomData<fn() -> T>),
+    /// - "I consume T" (PhantomData<fn(T)>), or some combination of those.
+    mod phantom_data_fn_t {
+        use super::*;
+
+        struct WrapperFn<T> {
+            _marker: PhantomData<fn() -> T>,
+        }
+
+        /// This is prevented as `NotSend` is not `Send`
+        #[test]
+        fn non_send_type_prevented() {
+            assert_send::<WrapperFn<NotSend>>();
+        }
+
+        /// This is allowed for the Send type.
+        #[test]
+        fn send_type_ok() {
+            assert_send::<WrapperFn<CanSend>>();
+        }
+    }
+}
+
+#[cfg(test)]
+mod typed_key_example {
+    use super::*;
+    use std::fmt::{Debug, Display};
+    use std::marker::PhantomData;
+    use std::rc::Rc;
+
+    mod ex_1 {
+        use super::*;
+        use std::thread;
+
+        /// Value type for ID fields
+        #[derive(PartialEq, Eq, Hash, PartialOrd, Ord)]
+        pub struct Id<T> {
+            inner: i32,
+            marker: PhantomData<fn() -> T>,
+        }
+
+        impl<T> Id<T> {
+            pub const fn new(inner: i32) -> Self {
+                Self {
+                    inner,
+                    marker: PhantomData,
+                }
+            }
+        }
+
+        impl<T> Display for Id<T> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                Display::fmt(&self.inner, f)
+            }
+        }
+
+        type UserPayrollId = Id<UserPayroll>;
+
+        struct UserPayroll {
+            pub id: UserPayrollId,
+        }
+
+        #[test]
+        fn pending() {}
+    }
+
+    /// oklyth:
+    /// this is a typed key which is a common strategy for creating type safe keys. eg i might have two collections
+    /// HashMap<Id<User>, User> and HashMap<Id<File>, File>, and the keys being unique types means i can't
+    /// accidentally try to fetch a file using a user id the specific form of the PhantomData is to prevent autotraits
+    /// from T from infecting Id itself because there's no reason that the key has to be !Send just because the type is,
+    /// the key is just a number.
+    ///
+    /// if you had PhantomData<T>, then any !Send, !Sync, !Unpin etc properties of T would get applied to Id<T>
+    ///
+    /// harudagondi:
+    /// my pedantic interpretation of Id<T> is that technically, Id stores a real i32 and a theoretical fn() -> T, where
+    /// in the eyes of the compiler, being theoretical doesn't really make a difference. autotraits are a completely orthogonal
+    /// concept, since you can opt out of auto traits without PhantomData anyways
+    ///
+    /// i just remember that (1) auto traits only inherit the traits from the general type (which is fn() -> T in this case), and (2) fn pointers are always Send + Sync, Copy and Unpin.
+    ///
+    /// so the specific form of PhantomData used (that it's a function pointer instead of T) is to avoid negative auto traits impls on T from infecting Id<T>
+    /// If T is !Send this will not make Id<T> !Send, and Id<T> will not be infected by negative autotraits on T.
+    mod simplified {
+        use super::*;
+
+        struct Id<T> {
+            inner: i32,
+            _marker: PhantomData<fn() -> T>,
+        }
+
+        impl<T> Id<T> {
+            pub const fn new(inner: i32) -> Self {
+                Self {
+                    inner,
+                    _marker: PhantomData,
+                }
+            }
+        }
+
+        type UserWalletId = Id<UserWallet>;
+
+        struct UserWallet {
+            pub id: UserWalletId,
+        }
+
+        #[test]
+        fn do_it() {
+            // NOTE ID holds a function that returns a UserWallet value.
+            // function pointers are always 'static
+            let id = Id::new(0_i32);
+            let wallet = UserWallet { id };
+        }
+    }
+
+    /// don't actually do that though, it just increases the size of your type by 8 bytes for no reason.
+    /// This is to demonstrate that you can also change variance without PhantomData but it's harder than usual.
+    /// you just store an fn() -> T directly with a dummy function; enforcing !Send/Sync misses the point of
+    /// opting out of auto traits
+    mod simplified_with_dummy {
+        use super::*;
+
+        struct Id<T> {
+            inner: i32,
+            _marker: fn() -> T,
+        }
+
+        fn _dummy<T>() -> T {
+            unimplemented!()
+        }
+
+        impl<T> Id<T> {
+            pub const fn new(inner: i32) -> Self {
+                Self {
+                    inner,
+                    _marker: _dummy,
+                }
+            }
+        }
+
+        type UserWalletId = Id<UserWallet>;
+
+        struct UserWallet {
+            pub id: UserWalletId,
+        }
+
+        #[test]
+        fn do_it() {
+            // NOTE ID holds a function that returns a UserWallet value.
+            // function pointers are always 'static
+            let id = Id::new(0_i32);
+            let wallet = UserWallet { id };
+        }
+    }
+}
+
+#[cfg(test)]
+mod demonstrate_rc_send_compile_error {
+    use std::rc::Rc;
+    use std::thread;
+
+    #[test]
+    fn demonstrate_rc_send_compile_error() {
+        // This test demonstrates that `Rc` cannot be sent across threads.
+        // Uncommenting the code block below WILL cause a compile-time error.
+        // This test *passes* because the problematic code is commented out.
+        // The purpose is to illustrate the error, not to actually compile it here.
+
+        let my_rc_value = Rc::new(String::from("Hello from Rc!"));
+
+        // -------------------------------------------------------------
+        // UNCOMMENT THE FOLLOWING BLOCK TO SEE THE COMPILE ERROR:
+        // -------------------------------------------------------------
+        /*
+        let handle = thread::spawn(move || {
+            // Error: `std::rc::Rc<std::string::String>` cannot be sent between threads safely
+            println!("Attempting to use Rc in thread: {}", my_rc_value);
+        });
+        */
+        // If the above line compiled, we would join the thread here.
+        // handle.join().unwrap();
+
+        // -------------------------------------------------------------
+
+        println!("This test function demonstrates the `Rc` send error.");
+        println!(
+            "Please uncomment the `thread::spawn` block within this test to observe the compile error when running `cargo test` or `cargo build`."
+        );
+
+        // Assert that the test itself passes (since the error-causing code is commented)
+        assert!(true);
     }
 
     #[test]
-    fn send_not_allowed() {
-        // error[E0277]: `Rc<u8>` cannot be sent between threads safely
-        //     --> src/language_foundations/subtyping_variance.rs:136:23
-        //     |
-        //     136 |         assert_send::<Wrapper<NotSend>>();
-        // |                       ^^^^^^^^^^^^^^^^ `Rc<u8>` cannot be sent between threads safely
-        //     |
-        //     = help: within `Wrapper<NotSend>`, the trait `Send` is not implemented for `Rc<u8>`
-    }
+    fn demonstrate_arc_send_success() {
+        // This test demonstrates that `Arc` can be safely sent across threads.
+        use std::sync::Arc;
+        use std::thread;
 
-    // PhantomData<fn() -> T> is covariant over T and also prevents auto traits like Send and Sync from being derived if T is not Send or Sync.
+        let my_arc_value = Arc::new(String::from("Hello from Arc!"));
 
-    struct WrapperFn<T> {
-        _marker: PhantomData<fn() -> T>,
-    }
+        // Clone the Arc to share ownership with the new thread
+        let my_arc_value_for_thread = Arc::clone(&my_arc_value);
 
-    #[test]
-    fn block_send() {
-        // This is correctly blocked as `NotSend` is not `Send`
-        assert_send::<WrapperFn<NotSend>>();
-    }
+        let handle = thread::spawn(move || {
+            // This will work because Arc is Send
+            println!("Value received in thread: {}", my_arc_value_for_thread);
+            assert_eq!(*my_arc_value_for_thread, "Hello from Arc!");
+        });
 
-    struct WrapperPtr<T> {
-        _marker: PhantomData<*const T>,
-    }
+        handle.join().unwrap();
 
-    #[test]
-    fn should_compile() {
-        // assert_send::<WrapperPtr<NotSend>>();
-
-        // error[E0277]: `*const NotSend` cannot be sent between threads safely
-        //     --> src/language_foundations/subtyping_variance.rs:147:23
-        //     |
-        //     147 |         assert_send::<WrapperPtr<NotSend>>();
-        // |                       ^^^^^^^^^^^^^^^^^^^ `*const NotSend` cannot be sent between threads safely
-        //     |
-        //     = help: within `WrapperPtr<NotSend>`, the trait `Send` is not implemented for `*const NotSend`
-        // note: required because it appears within the type `PhantomData<*const NotSend>`
+        println!("Original Arc value outside thread: {}", my_arc_value);
+        assert_eq!(*my_arc_value, "Hello from Arc!");
     }
 }
