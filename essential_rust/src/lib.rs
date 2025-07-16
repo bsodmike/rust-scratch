@@ -27,6 +27,7 @@ pub mod language_foundations {
     }
     pub mod subtyping_variance;
     pub mod subtyping_variance_felix_klock;
+    pub mod subtyping_variance_jon_gjengset;
 }
 
 pub mod drafts;
