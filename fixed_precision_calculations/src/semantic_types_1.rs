@@ -67,8 +67,9 @@ mod tests {
         // monetary value 12.34, stored as cents
         // - stored as a scaled integer, where it is scaled by N of Amount<N>
         let amount: Cents = Amount::new_scaled_i32(1234);
-        let value: i32 = amount.into();
+        assert!(format!("{:?}", &amount).contains("D128(digits=[1234], exp=[-2]"));
 
+        let value: i32 = amount.into();
         assert_eq!(value, 1234_i32);
     }
 
@@ -85,6 +86,16 @@ mod tests {
         // converting from internal storage, this is scaled by N of Amount<N>
         let d: i32 = converted.into();
         assert_eq!(d, 123_i32);
+
+        // Let's do the same but change our original value; assume we have 1 Euro:
+        let provided = 1.00;
+        let converted: Cents = Amount::new_scaled_i32((provided * 100.00) as i32);
+        // Interestingly, this is stored as 1e0 (which is the same as 100e-2).
+        assert!(format!("{:?}", &converted).contains("D128(digits=[1], exp=[0]"));
+
+        // converting from internal storage, this is scaled by N of Amount<N>
+        let d: i32 = converted.into();
+        assert_eq!(d, 100_i32);
     }
 
     #[test]
