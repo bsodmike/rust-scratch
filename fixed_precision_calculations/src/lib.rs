@@ -35,6 +35,7 @@ pub mod utility {
 
 pub mod precision_loss_1;
 pub mod semantic_types_1;
+pub mod semantic_types_ref;
 
 // These are organic ideas, just something for me to percolate over.
 pub mod draft_1;
