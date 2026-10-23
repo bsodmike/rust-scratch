@@ -1,10 +1,20 @@
 # rust-scratch
 
-This is a repo full of explorations into various Rust language features and crates. They are written for didactic exposition where possible.
+This is a repo full of explorations into various Rust language features and crates. They are written for didactic
+exposition where possible.
 
 In the future, these can be turned into the following:
 
 1. Articles on [crustyengineer.com](https://crustyengineer.com).
+
+## Running examples
+
+```shell
+# specify example name to run it.
+cargo run --example "EXAMPLE_NAME"
+```
+
+## Feedback
 
 If you have questions, comments, feedback:
 
