@@ -3,7 +3,7 @@
 A small, complete example of the **erased-trait pattern** for async traits in Rust:
 
 - users implement a trait with plain `async fn`, with no macro and no boxing;
-- the library still stores implementations of *different types* side by side and calls them
+- the library still stores implementations of _different types_ side by side and calls them
   dynamically;
 - the bridge between the two is a crate-private, dyn-compatible "erased" twin of the trait.
 
@@ -55,7 +55,7 @@ impl Subscriber for Audit {
 }
 ```
 
-But a library that keeps *many* subscribers of *different* types, one per topic, wants to store
+But a library that keeps _many_ subscribers of _different_ types, one per topic, wants to store
 them in one collection, which in Rust means a trait object: `Arc<dyn Subscriber>`. That doesn't
 compile:
 
@@ -86,7 +86,7 @@ compiler generates a different anonymous future type for every implementation: `
 no single return type to put in the vtable, so `dyn Subscriber` can't exist.
 
 Boxing fixes this. `Pin<Box<dyn Future<Output = T> + Send + 'a>>` is **one** type (a pointer)
-whatever future is inside, so a method returning it *can* sit in a vtable. The pattern puts the
+whatever future is inside, so a method returning it _can_ sit in a vtable. The pattern puts the
 boxing in a second, private trait so users never write it.
 
 ## 3. The pattern
@@ -191,6 +191,42 @@ subscribe(&sub)
        └─ Err(Elapsed) → TIMEOUT; the future is dropped (cancelled)
 ```
 
+As a visual flow-chart:
+
+```mermaid
+flowchart TD
+    subgraph REG["register: once per topic"]
+        R0(["Broker::register::&lt;S&gt;(topic, subscriber)"])
+        R1["Arc::new(subscriber)<br/>→ Arc&lt;S&gt;"]
+        R2["Arc&lt;dyn ErasedSubscriber&gt;<br/>S's vtable is built here;<br/>S's type is erased from now on"]
+        MAP[("topic → subscriber map")]
+        R0 --> R1 -->|unsizing coercion| R2 -->|insert| MAP
+    end
+
+    subgraph SUB["subscribe: every call"]
+        S0(["Broker::subscribe(&sub)"])
+        S1{"find sub.topic()<br/>in the map"}
+        NS["Err(NO_SUBSCRIBER)"]
+        S2["clone the Arc out,<br/>release the lock"]
+        S3["subscriber.subscribe(&sub)<br/>dynamic call through the vtable"]
+        subgraph IMPL["blanket impl: ErasedSubscriber for S"]
+            S4["S::on_subscribe(&sub)<br/>static call: S's own future"]
+            S5["Box::pin(..)<br/>one heap allocation per callback"]
+            S4 --> S5
+        end
+        S6{"tokio::time::timeout<br/>(.., fut).await"}
+        OK["Ok(()) / Err(..)<br/>from the subscriber"]
+        TO["future dropped (cancelled)<br/>→ Err(TIMEOUT)"]
+        S0 --> S1 -->|found| S2 --> S3 --> S4
+        S1 -->|no entry| NS
+        S5 -->|"BoxFuture&lt;'a, ..&gt;"| S6
+        S6 -->|in time| OK
+        S6 -->|deadline passed| TO
+    end
+
+    MAP -.->|lookup| S1
+```
+
 There are two layers of dynamic dispatch per call: the subscriber is reached through the
 `dyn ErasedSubscriber` vtable, and the future it returns is a second trait object
 (`dyn Future`), polled through its own vtable. `Arc<dyn ErasedSubscriber>` is two words wide; the
@@ -198,7 +234,7 @@ unit test `a_stored_subscriber_is_a_fat_pointer` checks this.
 
 ## 5. Lifetimes: borrowing across `.await`
 
-The returned future borrows `self` *and* `sub`. Both parameters share the lifetime `'a`, and so does
+The returned future borrows `self` _and_ `sub`. Both parameters share the lifetime `'a`, and so does
 the future:
 
 ```rust
@@ -221,7 +257,7 @@ async fn on_subscribe(&self, sub: &Subscription) -> Result<(), Rejection> {
 Two details make this pleasant:
 
 - **Implementors never write `'a`.** `async fn on_subscribe(&self, sub: &Subscription)` gets two
-  independent elided lifetimes, which is *more general* than the trait's single `'a`. The compiler
+  independent elided lifetimes, which is _more general_ than the trait's single `'a`. The compiler
   accepts the more general signature.
 - **Getting it wrong is a compile error, not a runtime bug.** If the trait left `sub` unbound
   (`sub: &Subscription` with the future bounded only by `'a`), the future couldn't borrow it, and
@@ -282,7 +318,7 @@ or use `tokio::sync::Mutex` when the lock really must be held across an await. B
 doctests in `src/lib.rs` (the broken one is a `compile_fail` doctest).
 
 The broker follows the same rule internally: `Broker::subscriber` clones the `Arc` out of the map
-and releases the std `Mutex` *before* awaiting the callback.
+and releases the std `Mutex` _before_ awaiting the callback.
 
 ## 7. Forwarding through `Arc`
 
@@ -313,7 +349,7 @@ Because the return type is `impl Future`, the forwarding impl returns the inner 
 `Arc<Arc<Roster>>` behind the trait object, and a call still costs exactly one box (the adapter's).
 
 Compare `#[async_trait]`, where every method returns a box: the same forwarding impl boxes the outer
-call *and* the inner one, two allocations per call.
+call _and_ the inner one, two allocations per call.
 
 ## 8. Visibility: keeping the twin private
 
@@ -357,14 +393,14 @@ match tokio::time::timeout(self.timeout, subscriber.subscribe(sub)).await {
 ```
 
 When the deadline passes, `timeout` returns `Err(Elapsed)` and the callback's boxed future is
-dropped. The same happens when the *caller* gives up: a task running `broker.subscribe(..)` that is
+dropped. The same happens when the _caller_ gives up: a task running `broker.subscribe(..)` that is
 aborted, or a `subscribe` future that loses a `tokio::select!` race.
 
 What this means for implementors:
 
 - keep state consistent at every `.await`, because any of them can be the last one that runs;
 - use guards (`Drop`) for cleanup that must happen on cancellation;
-- work you `tokio::spawn` from a callback is *not* cancelled with it: it keeps running and may overlap
+- work you `tokio::spawn` from a callback is _not_ cancelled with it: it keeps running and may overlap
   the next callback.
 
 The tests prove cancellation with a drop guard: a stalled callback holds a value whose `Drop` sets a
@@ -384,14 +420,14 @@ and no allocation at all. The gains of the pattern are in ergonomics and correct
 
 **Alternatives**, and when to pick them:
 
-| Approach | What it does | Pick it when |
-|---|---|---|
-| This pattern (hand-written erased twin) | Public RPITIT trait plus a private boxing twin | You need heterogeneous storage, want plain `async fn` for users, and want no extra dependency |
-| [`dynosaur`](https://docs.rs/dynosaur) | Generates the dyn-compatible `Dyn<Trait>` type from an attribute | Same goal, but you'd rather generate the twin than maintain it (the generated type is public) |
-| [`async-trait`](https://docs.rs/async-trait) | A macro that rewrites every method to return a boxed future | You need `dyn Trait` directly and accept boxing every call, even static ones |
-| [`trait-variant`](https://docs.rs/trait-variant) | Generates a `Send` variant of an RPITIT trait | You need `Send` bounds on an async trait but not `dyn` dispatch |
-| Enum dispatch | An enum over the known handler types, implementing the trait by `match` | The set of types is closed and known to you; there's no boxing |
-| Generics only (`Broker<S: Subscriber>`) | No erasure at all | One handler type per container is enough |
+| Approach                                         | What it does                                                            | Pick it when                                                                                  |
+| ------------------------------------------------ | ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| This pattern (hand-written erased twin)          | Public RPITIT trait plus a private boxing twin                          | You need heterogeneous storage, want plain `async fn` for users, and want no extra dependency |
+| [`dynosaur`](https://docs.rs/dynosaur)           | Generates the dyn-compatible `Dyn<Trait>` type from an attribute        | Same goal, but you'd rather generate the twin than maintain it (the generated type is public) |
+| [`async-trait`](https://docs.rs/async-trait)     | A macro that rewrites every method to return a boxed future             | You need `dyn Trait` directly and accept boxing every call, even static ones                  |
+| [`trait-variant`](https://docs.rs/trait-variant) | Generates a `Send` variant of an RPITIT trait                           | You need `Send` bounds on an async trait but not `dyn` dispatch                               |
+| Enum dispatch                                    | An enum over the known handler types, implementing the trait by `match` | The set of types is closed and known to you; there's no boxing                                |
+| Generics only (`Broker<S: Subscriber>`)          | No erasure at all                                                       | One handler type per container is enough                                                      |
 
 ## 11. Layout, running, and what each test proves
 
@@ -430,24 +466,24 @@ s6 on unknown: rejected (NO_SUBSCRIBER: no subscriber for topic unknown)
 roster after unsubscribing s1: {"orders": ["s3"], "payments": ["s2"]}
 ```
 
-| Property | Test | Where |
-|---|---|---|
-| Borrowing `sub` across `.await` | `a_subscriber_borrows_its_subscription_across_await` | `tests/subscriber.rs` |
-| | `the_callers_reference_reaches_the_subscriber_unchanged` (same address, no clone) | `tests/subscriber.rs` |
-| `Send` futures | `every_future_on_the_path_is_send` (compile-time asserts plus a real `tokio::spawn`) | `tests/subscriber.rs` |
-| | the `MutexGuard` `compile_fail` doctest and its fixed counterpart | `src/lib.rs` |
-| Forwarding through `Arc` | `one_arc_serves_several_topics` | `tests/subscriber.rs` |
-| | `calling_through_an_arc_reaches_the_inner_subscriber` | `tests/subscriber.rs` |
-| Execution through the internal adapter | `the_adapter_runs_the_default_callbacks` | `src/erased.rs` |
-| | `the_adapter_runs_overridden_callbacks` (via `Arc<Arc<T>>`) | `src/erased.rs` |
-| | `subscribers_of_different_types_share_one_collection` | `src/erased.rs` |
-| | `nothing_runs_until_the_boxed_future_is_polled` | `src/erased.rs` |
-| | `a_stored_subscriber_is_a_fat_pointer` | `src/erased.rs` |
-| Errors | `a_rejection_reaches_the_caller_unchanged` | `tests/subscriber.rs` |
-| | `an_unknown_topic_is_no_subscriber` | `tests/subscriber.rs` |
-| Cancellation | `a_callback_past_the_timeout_is_dropped_and_the_next_one_runs` | `tests/subscriber.rs` |
-| | `aborting_the_caller_cancels_the_callback` | `tests/subscriber.rs` |
-| | `losing_a_select_race_cancels_the_callback` | `tests/subscriber.rs` |
+| Property                               | Test                                                                                 | Where                 |
+| -------------------------------------- | ------------------------------------------------------------------------------------ | --------------------- |
+| Borrowing `sub` across `.await`        | `a_subscriber_borrows_its_subscription_across_await`                                 | `tests/subscriber.rs` |
+|                                        | `the_callers_reference_reaches_the_subscriber_unchanged` (same address, no clone)    | `tests/subscriber.rs` |
+| `Send` futures                         | `every_future_on_the_path_is_send` (compile-time asserts plus a real `tokio::spawn`) | `tests/subscriber.rs` |
+|                                        | the `MutexGuard` `compile_fail` doctest and its fixed counterpart                    | `src/lib.rs`          |
+| Forwarding through `Arc`               | `one_arc_serves_several_topics`                                                      | `tests/subscriber.rs` |
+|                                        | `calling_through_an_arc_reaches_the_inner_subscriber`                                | `tests/subscriber.rs` |
+| Execution through the internal adapter | `the_adapter_runs_the_default_callbacks`                                             | `src/erased.rs`       |
+|                                        | `the_adapter_runs_overridden_callbacks` (via `Arc<Arc<T>>`)                          | `src/erased.rs`       |
+|                                        | `subscribers_of_different_types_share_one_collection`                                | `src/erased.rs`       |
+|                                        | `nothing_runs_until_the_boxed_future_is_polled`                                      | `src/erased.rs`       |
+|                                        | `a_stored_subscriber_is_a_fat_pointer`                                               | `src/erased.rs`       |
+| Errors                                 | `a_rejection_reaches_the_caller_unchanged`                                           | `tests/subscriber.rs` |
+|                                        | `an_unknown_topic_is_no_subscriber`                                                  | `tests/subscriber.rs` |
+| Cancellation                           | `a_callback_past_the_timeout_is_dropped_and_the_next_one_runs`                       | `tests/subscriber.rs` |
+|                                        | `aborting_the_caller_cancels_the_callback`                                           | `tests/subscriber.rs` |
+|                                        | `losing_a_select_race_cancels_the_callback`                                          | `tests/subscriber.rs` |
 
 The adapter tests live in `src/erased.rs` because the trait is crate-private: integration tests in
 `tests/` are a separate crate and can't name it.
