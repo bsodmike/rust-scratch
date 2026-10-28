@@ -1,0 +1,13 @@
+[package]
+name = "erased-async-trait"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "A worked example of the erased-trait pattern: an async fn trait for users, a dyn-compatible twin for storage."
+publish = false
+
+[dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["test-util"] }
